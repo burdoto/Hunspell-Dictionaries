@@ -1,0 +1,102 @@
+buildscript {
+  repositories.gradlePluginPortal()
+  dependencies.classpath "io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.21.0"
+}
+
+apply plugin: 'java-library'
+
+group 'de.kaleidox'
+version '0.0.0'
+
+apply from: 'gradle/vars.gradle'
+
+def exportedProjects = [
+  ':core'
+]
+
+wrapper {
+  gradleVersion = '5.2'
+  distributionUrl = "https://services.gradle.org/distributions/gradle-$gradleVersion-all.zip"
+}
+
+sourceSets {
+  main.java.srcDirs = []
+  main.resources.srcDirs = []
+  test.java.srcDirs = []
+  test.resources.srcDirs = []
+}
+
+allprojects {
+  tasks.withType(Javadoc) {
+    options {
+      encoding = 'UTF-8'
+      links = [
+        "https://docs.oracle.com/javase/8/docs/api/",
+        "https://docs.oracle.com/javaee/7/api/"
+      ]
+    }
+  }
+}
+
+subprojects {
+  apply plugin: 'java-library'
+
+  group 'de.kaleidox'
+
+  sourceCompatibility = 1.8
+  targetCompatibility = 1.8
+
+  task sourcesJar(type: Jar) {
+    from sourceSets.main.allJava
+    archiveClassifier = "sources"
+  }
+
+  task javadocJar(type: Jar) {
+    //javadoc
+    from javadoc.destinationDir
+    archiveClassifier = "javadoc"
+  }
+
+  compileJava.options.encoding = 'UTF-8'
+  repositories.jcenter()
+
+  dependencies {
+    compileOnly 'org.jetbrains:annotations:17.0.0'
+
+    testImplementation 'junit:junit:4.12'
+    testImplementation 'org.easymock:easymock:4.0.2'
+
+    testCompileOnly 'org.codehaus.groovy:groovy:3.0.0-beta-1'
+  }
+
+  if (project.name != "core") {
+    sourceSets {
+      main.java.srcDirs = [/*"${rootProject.rootDir}/dictionaries/${project.name}/src/main/java"*/]
+      main.resources.srcDirs = ["${rootProject.rootDir}/dictionaries/${project.name}"]
+      test.java.srcDirs = []
+      test.resources.srcDirs = []
+    }
+
+    dependencies {
+      api project(':core')
+    }
+  }
+}
+
+project(':core') {
+  version '0.0.0'
+
+  dependencies {
+    testRuntime project(':en-US')
+  }
+}
+
+
+task allJavadoc(type: Javadoc) {
+    source exportedProjects.collect { project(it).sourceSets.main.allJava }
+    classpath = files(exportedProjects.collect { project(it).sourceSets.main.compileClasspath })
+    options.encoding = 'UTF-8'
+    options.destinationDirectory(file("./docs/"))
+}
+
+apply from: 'gradle/publishing.gradle'
